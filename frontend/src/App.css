@@ -490,8 +490,9 @@ body {
 }
 
 .forgot-password-link {
-  display: block;
+  display: flex;
   color: blue;
-  cursor: pointer;
   justify-content: center;
+  cursor: pointer;
+  text-decoration: underline;
 }
