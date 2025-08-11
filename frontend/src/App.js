@@ -361,6 +361,9 @@ function App() {
                 required
               />
             </div>
+
+            <div className="forgot-password-link">Fogot Password</div>
+            
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </button>

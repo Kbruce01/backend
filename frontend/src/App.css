@@ -481,3 +481,17 @@ body {
 .form-textarea::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
+
+.forgot-password {
+  display: flex;
+  color: blue;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.forgot-password-link {
+  display: block;
+  color: blue;
+  cursor: pointer;
+  justify-content: center;
+}
