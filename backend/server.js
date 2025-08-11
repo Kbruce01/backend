@@ -4,7 +4,8 @@ const mysql = require('mysql2');
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = ('nodemailer');
+const nodemailer = require('nodemailer');
+const validator = require('validator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +53,53 @@ app.get('/', (req, res) => {
   res.json({ message: 'Task Manager API is running!' });
 });
 
+app.post('/forgot-password', (req, res) => {
+  const { email } = req.body;
+
+  // ✅ Validate the email format
+  if (!validator.isEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email address' });
+  };
+
+  // Check if user exists
+  const findUser = 'SELECT * FROM users WHERE email = ?';
+  db.query(findUser, [email], (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error' });
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'No user found with that email' });
+    }
+
+    // Create token (expires in 15 mins)
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '15m' });
+
+    // Send email with reset link
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,  // your Gmail
+        pass: process.env.EMAIL_PASS   // your Gmail App Password
+      }
+    });
+
+    const resetLink = `http://localhost:3000/reset-password/${token}`; // your frontend route
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset',
+      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 15 minutes.</p>`
+    };
+
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error('Error sending email:', err);
+        return res.status(500).json({ message: 'Error sending email' });
+      }
+
+      res.json({ message: 'Password reset email sent' });
+    });
+  });
+});
+
 // post/register endpoint
 app.post('/register', (req, res) => {
   const {username, email, password} = req.body;
@@ -59,6 +107,12 @@ app.post('/register', (req, res) => {
   // validating the input
   if(!username || !email || !password) {
     return res.status(400).json({message: 'All fields are required'});
+  }
+
+  // validate email using regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRegex.test(email)) {
+    return res.status(404).json({message: 'Please enter a valid email address'})
   }
 
   if(password.length < 8) {
