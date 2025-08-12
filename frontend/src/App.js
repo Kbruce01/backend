@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import axios from 'axios';
 
 // API base URL
 const API_URL = 'http://localhost:3001';
@@ -363,7 +362,7 @@ function App() {
               />
             </div>
 
-            <div className="forgot-password-link">Fogot Password</div>
+            <div className="forgot-password-link">Forgot Password</div>
             
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
@@ -414,6 +413,7 @@ function App() {
     </div>
   );
 }
+
 
 // Task Card Component (same as before)
 function TaskCard({ task, onDelete, onEdit, onUpdate, isEditing }) {
