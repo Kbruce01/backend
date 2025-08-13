@@ -14,22 +14,6 @@ const PORT = process.env.PORT || 3001;
 app.use(cors()); // allow react to call this 
 app.use(express.json());
 
-// middleware to verify token
-const verifyToken = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  
-  if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided.' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Save user info for use in routes
-    next(); // Continue to the actual route
-  } catch (error) {
-    res.status(400).json({ message: 'Invalid token.' });
-  }
-};
 
 // Mysql connection
 const db = mysql.createConnection({
@@ -53,65 +37,6 @@ app.get('/', (req, res) => {
   res.json({ message: 'Task Manager API is running!' });
 });
 
-// post/register endpoint
-app.post('/register', (req, res) => {
-  const {username, email, password} = req.body;
-
-  // validating the input
-  if(!username || !email || !password) {
-    return res.status(400).json({message: 'All fields are required'});
-  }
-
-  // validate email using regex
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!emailRegex.test(email)) {
-    return res.status(404).json({message: 'Please enter a valid email address'})
-  }
-
-  if(password.length < 8) {
-    return res.status(400).json({message: 'Password must be at least 8 characters'});
-  }
-
-  // Checking if user already exists
-  const checkUser = 'SELECT * FROM users WHERE email = ? OR username = ?';
-  db.query(checkUser, [email, username], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ message: 'Database error' });
-    }
-
-    if (results.length > 0) {
-      return res.status(400).json({ message: 'User with this email or username already exists' });
-    }
-
-    // If we get here, user doesn't exist yet - hash password and create user
-    console.log('User does not exist, proceeding with registration');
-
-    // Hash the password
-    const howManyTimeesToHash = 10;
-    bcrypt.hash(password, howManyTimeesToHash, (err, hashedPassword) => {
-      if (err) {
-        console.error('Error hashing the password:', err);
-        return res.status(500).json({ message: 'Server error' });
-      }
-
-      // new user into database
-      const insertNewUser = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
-      db.query(insertNewUser, [username, email, hashedPassword], (err, result) => {
-        if (err) {
-          console.error('Error creating user:', err);
-          return res.status(500).json({ message: 'Error creating user' });
-        }
-
-        console.log('User created successfully with an ID:', result.insertId);
-        res.status(201).json({ 
-          message: 'User created successfully!',
-          userId: result.insertId 
-        });
-      });
-    });
-  });
-});
 
 // the post/login endpoint
 app.post('/login', (req, res) => {
