@@ -4,9 +4,6 @@ const mysql = require('mysql2');
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const validator = require('validator');
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
