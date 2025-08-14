@@ -29,7 +29,7 @@ requiredEnvVars.forEach(varName => {
 console.log('✅ All required environment variables are set');
 
 // Email configuration
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
@@ -141,143 +141,28 @@ app.post('/register', (req, res) => {
         return res.status(500).json({ message: 'Server error' });
       }
 
-      // Generate email verification token
-      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-      
-      // Insert new user with verification token
-      const insertUser = 'INSERT INTO users (username, email, password, email_verification_token) VALUES (?, ?, ?, ?)';
-      db.query(insertUser, [username, email, hashedPassword, emailVerificationToken], (err, result) => {
+      // Insert new user (no email verification required)
+      const insertUser = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+      db.query(insertUser, [username, email, hashedPassword], (err, result) => {
         if (err) {
           console.error('Database error:', err);
           return res.status(500).json({ message: 'Database error' });
         }
 
-        // Send verification email
-        const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${emailVerificationToken}`;
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Verify Your Email - Task Manager',
-          html: `
-            <h2>Welcome to Task Manager!</h2>
-            <p>Please click the link below to verify your email address:</p>
-            <a href="${verificationUrl}" style="background-color: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-              Verify Email
-            </a>
-            <p>If the button doesn't work, copy and paste this link:</p>
-            <p>${verificationUrl}</p>
-            <p>This link will expire in 24 hours.</p>
-          `
-        };
-
-        transporter.sendMail(mailOptions, (emailErr) => {
-          if (emailErr) {
-            console.error('Email sending error:', emailErr);
-            // Still create user but notify about email issue
-            return res.status(201).json({
-              message: 'User registered successfully, but verification email could not be sent. Please contact support.',
-              user: {
-                id: result.insertId,
-                username,
-                email
-              }
-            });
+        res.status(201).json({
+          message: 'User registered successfully! You can now login.',
+          user: {
+            id: result.insertId,
+            username,
+            email
           }
-
-          res.status(201).json({
-            message: 'User registered successfully! Please check your email to verify your account.',
-            user: {
-              id: result.insertId,
-              username,
-              email
-            }
-          });
         });
       });
     });
   });
 });
 
-// POST /verify-email - Email verification endpoint
-app.post('/verify-email', (req, res) => {
-  const { token } = req.body;
-
-  if (!token) {
-    return res.status(400).json({ message: 'Verification token is required' });
-  }
-
-  const verifyUser = 'UPDATE users SET email_verified = TRUE, email_verification_token = NULL WHERE email_verification_token = ?';
-  db.query(verifyUser, [token], (err, result) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ message: 'Database error' });
-    }
-
-    if (result.affectedRows === 0) {
-      return res.status(400).json({ message: 'Invalid or expired verification token' });
-    }
-
-    res.json({ message: 'Email verified successfully! You can now login.' });
-  });
-});
-
-// POST /resend-verification - Resend verification email
-app.post('/resend-verification', (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: 'Email is required' });
-  }
-
-  const findUser = 'SELECT * FROM users WHERE email = ? AND email_verified = FALSE';
-  db.query(findUser, [email], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ message: 'Database error' });
-    }
-
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'User not found or already verified' });
-    }
-
-    const user = results[0];
-    const newToken = crypto.randomBytes(32).toString('hex');
-    
-    const updateToken = 'UPDATE users SET email_verification_token = ? WHERE id = ?';
-    db.query(updateToken, [newToken, user.id], (updateErr) => {
-      if (updateErr) {
-        console.error('Database error:', updateErr);
-        return res.status(500).json({ message: 'Database error' });
-      }
-
-      const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${newToken}`;
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: 'Verify Your Email - Task Manager',
-        html: `
-          <h2>Email Verification</h2>
-          <p>Please click the link below to verify your email address:</p>
-          <a href="${verificationUrl}" style="background-color: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-            Verify Email
-          </a>
-          <p>If the button doesn't work, copy and paste this link:</p>
-          <p>${verificationUrl}</p>
-          <p>This link will expire in 24 hours.</p>
-        `
-      };
-
-      transporter.sendMail(mailOptions, (emailErr) => {
-        if (emailErr) {
-          console.error('Email sending error:', emailErr);
-          return res.status(500).json({ message: 'Failed to send verification email' });
-        }
-
-        res.json({ message: 'Verification email sent successfully!' });
-      });
-    });
-  });
-});
+// Email verification endpoints removed - users can login immediately after registration
 
 // the post/login endpoint
 app.post('/login', (req, res) => {
@@ -303,13 +188,7 @@ app.post('/login', (req, res) => {
     const user = results[0];
     console.log('User Found:', user.username);
 
-    // Check if email is verified
-    if (!user.email_verified) {
-      return res.status(401).json({ 
-        message: 'Please verify your email before logging in. Check your inbox or request a new verification email.',
-        needsVerification: true
-      });
-    }
+    // Email verification check removed - users can login immediately after registration
 
     // Comparing the password sent to the hashed password in my database
     bcrypt.compare(password, user.password, (err, isMatch) => {

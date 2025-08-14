@@ -145,11 +145,6 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.needsVerification) {
-          setError('Please verify your email before logging in. Check your inbox or request a new verification email.');
-          setCurrentView('verification');
-          return;
-        }
         throw new Error(data.message || 'Login failed');
       }
 
@@ -190,7 +185,7 @@ function App() {
 
       setRegisterForm({ username: '', email: '', password: '' });
       setCurrentView('login');
-      setError('Registration successful! Please login.');
+      setError('Registration successful! You can now login.');
       
     } catch (err) {
       setError(err.message);
@@ -443,10 +438,7 @@ function App() {
     );
   }
 
-  // Show email verification page
-  if (currentView === 'verification') {
-    return <EmailVerification />;
-  }
+  // Email verification removed - users can login immediately
 
   // Show password reset page
   if (currentView === 'forgot-password') {
