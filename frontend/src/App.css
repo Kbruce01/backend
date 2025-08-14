@@ -296,6 +296,32 @@ body {
   font-size: 1.1rem;
 }
 
+/* Loading Screen */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Tasks Grid */
 .tasks-grid {
   display: grid;
@@ -320,6 +346,16 @@ body {
   border-color: #667eea;
 }
 
+.task-card.completed {
+  background: #f0f8f0;
+  border-color: #28a745;
+  opacity: 0.8;
+}
+
+.task-card.completed:hover {
+  opacity: 1;
+}
+
 .task-card.editing {
   border-color: #007bff;
   background: #e3f2fd;
@@ -329,18 +365,43 @@ body {
   margin-bottom: 15px;
 }
 
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.task-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #28a745;
+}
+
 .task-title {
   color: #495057;
   font-size: 1.25rem;
   font-weight: 600;
-  margin-bottom: 10px;
   line-height: 1.4;
+  margin: 0;
+  flex: 1;
+}
+
+.task-title.completed {
+  text-decoration: line-through;
+  color: #6c757d;
 }
 
 .task-description {
   color: #6c757d;
   margin-bottom: 15px;
   line-height: 1.5;
+}
+
+.task-description.completed {
+  text-decoration: line-through;
+  color: #adb5bd;
 }
 
 .task-meta {
@@ -359,6 +420,20 @@ body {
   padding: 4px 8px;
   border-radius: 4px;
   font-weight: 500;
+}
+
+.task-status {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.task-status.completed {
+  background-color: #d4edda;
+  color: #155724;
 }
 
 .task-actions {
@@ -495,4 +570,36 @@ body {
   justify-content: center;
   cursor: pointer;
   text-decoration: underline;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  color: #5a6fd8;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.verification-result {
+  text-align: center;
+  padding: 20px;
+}
+
+.auth-links {
+  text-align: center;
+  margin-top: 20px;
 }

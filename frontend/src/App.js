@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import EmailVerification from './EmailVerification';
+import PasswordReset from './PasswordReset';
 
 // API base URL
 const API_URL = 'http://localhost:3001';
@@ -10,6 +12,7 @@ function App() {
   const [currentView, setCurrentView] = useState('login');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true); // New state for initial load
   const [error, setError] = useState('');
   const [newTask, setNewTask] = useState({ title: '', description: '' });
   const [editingTask, setEditingTask] = useState(null);
@@ -20,9 +23,75 @@ function App() {
 
   // Check if user is logged in on app load
   useEffect(() => {
-    if (token) {
-      fetchTasks();
-    }
+    const validateTokenAndRestoreUser = async () => {
+      if (token) {
+        try {
+          console.log('Validating token...');
+          
+          // First, test if server is reachable
+          try {
+            const testResponse = await fetch(`${API_URL}/`, { 
+              method: 'GET',
+              signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
+            if (!testResponse.ok) {
+              throw new Error('Server not responding');
+            }
+          } catch (testError) {
+            console.error('Server test failed:', testError);
+            setError('Cannot connect to server. Please check if the backend is running.');
+            setToken(null);
+            setUser(null);
+            setCurrentView('login');
+            setInitializing(false);
+            return;
+          }
+          
+          // First, try to get user info to validate the token
+          const userResponse = await makeAuthenticatedRequest(`${API_URL}/me`);
+          
+          if (userResponse.ok) {
+            // Token is valid, get user data
+            const userData = await userResponse.json();
+            setUser(userData.user);
+            setCurrentView('tasks');
+            
+            // Now fetch tasks
+            const tasksResponse = await makeAuthenticatedRequest(`${API_URL}/tasks`);
+            if (tasksResponse.ok) {
+              const tasksData = await tasksResponse.json();
+              setTasks(tasksData);
+            }
+            console.log('Token validation successful');
+          } else if (userResponse.status === 401) {
+            // Token is invalid, clear it and show login
+            console.log('Token invalid, logging out');
+            handleLogout();
+          } else {
+            // Other error, log it and logout
+            console.error('Unexpected response:', userResponse.status);
+            handleLogout();
+          }
+        } catch (error) {
+          console.error('Error validating token:', error);
+          // Check if it's a network error or server down
+          if (error.message.includes('timeout') || error.message.includes('Failed to fetch')) {
+            console.log('Server appears to be down, showing login page');
+            setError('Server is not responding. Please try again later.');
+          }
+          // Don't logout on network errors, just show login
+          setToken(null);
+          setUser(null);
+          setCurrentView('login');
+        }
+      } else {
+        // No token, user is not logged in
+        console.log('No token found');
+      }
+      setInitializing(false);
+    };
+
+    validateTokenAndRestoreUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -37,10 +106,25 @@ function App() {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return fetch(url, {
-      ...options,
-      headers,
-    });
+    // Add timeout to prevent infinite loading
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - server not responding');
+      }
+      throw error;
+    }
   };
 
   // Login function
@@ -61,6 +145,11 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.needsVerification) {
+          setError('Please verify your email before logging in. Check your inbox or request a new verification email.');
+          setCurrentView('verification');
+          return;
+        }
         throw new Error(data.message || 'Login failed');
       }
 
@@ -206,7 +295,8 @@ function App() {
           handleLogout();
           return;
         }
-        throw new Error('Failed to update task');
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to update task');
       }
 
       setEditingTask(null);
@@ -215,6 +305,52 @@ function App() {
       setError(err.message);
     }
   };
+
+  // Toggle task completion
+  const toggleTaskCompletion = async (task) => {
+    try {
+      const response = await makeAuthenticatedRequest(`${API_URL}/tasks/${task.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description,
+          completed: !task.completed
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleLogout();
+          return;
+        }
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to update task');
+      }
+
+      fetchTasks();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Show loading screen while initializing
+  if (initializing) {
+    return (
+      <div className="app">
+        <div className="loading-screen">
+          <div className="loading-spinner"></div>
+          <p>Loading...</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-secondary"
+            style={{ marginTop: '20px' }}
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // If user is logged in, show the task manager
   if (token && currentView === 'tasks') {
@@ -295,6 +431,7 @@ function App() {
                     onDelete={deleteTask}
                     onEdit={setEditingTask}
                     onUpdate={updateTask}
+                    onToggleComplete={toggleTaskCompletion}
                     isEditing={editingTask?.id === task.id}
                   />
                 ))}
@@ -304,6 +441,16 @@ function App() {
         </main>
       </div>
     );
+  }
+
+  // Show email verification page
+  if (currentView === 'verification') {
+    return <EmailVerification />;
+  }
+
+  // Show password reset page
+  if (currentView === 'forgot-password') {
+    return <PasswordReset />;
   }
 
   // Authentication forms
@@ -362,7 +509,15 @@ function App() {
               />
             </div>
 
-            <div className="forgot-password-link">Forgot Password</div>
+            <div className="forgot-password-link">
+              <button 
+                type="button" 
+                onClick={() => setCurrentView('forgot-password')}
+                className="link-button"
+              >
+                Forgot Password?
+              </button>
+            </div>
             
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
@@ -415,8 +570,8 @@ function App() {
 }
 
 
-// Task Card Component (same as before)
-function TaskCard({ task, onDelete, onEdit, onUpdate, isEditing }) {
+// Task Card Component
+function TaskCard({ task, onDelete, onEdit, onUpdate, onToggleComplete, isEditing }) {
   const [editForm, setEditForm] = useState({
     title: task.title,
     description: task.description || '',
@@ -464,11 +619,24 @@ function TaskCard({ task, onDelete, onEdit, onUpdate, isEditing }) {
   }
 
   return (
-    <div className="task-card">
+    <div className={`task-card ${task.completed ? 'completed' : ''}`}>
       <div className="task-content">
-        <h3 className="task-title">{task.title}</h3>
+        <div className="task-header">
+          <input
+            type="checkbox"
+            checked={task.completed || false}
+            onChange={() => onToggleComplete(task)}
+            className="task-checkbox"
+            title={task.completed ? 'Mark as incomplete' : 'Mark as complete'}
+          />
+          <h3 className={`task-title ${task.completed ? 'completed' : ''}`}>
+            {task.title}
+          </h3>
+        </div>
         {task.description && (
-          <p className="task-description">{task.description}</p>
+          <p className={`task-description ${task.completed ? 'completed' : ''}`}>
+            {task.description}
+          </p>
         )}
         <div className="task-meta">
           <span className="task-id">ID: {task.id}</span>
@@ -476,6 +644,9 @@ function TaskCard({ task, onDelete, onEdit, onUpdate, isEditing }) {
             <span className="task-date">
               Created: {new Date(task.created_at).toLocaleDateString()}
             </span>
+          )}
+          {task.completed && (
+            <span className="task-status completed">✓ Completed</span>
           )}
         </div>
       </div>
