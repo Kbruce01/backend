@@ -326,55 +326,65 @@ app.post('/forgot-password', (req, res) => {
     return res.status(400).json({ message: 'Email is required' });
   }
 
-  const findUser = 'SELECT * FROM users WHERE email = ?';
-  db.query(findUser, [email], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ message: 'Database error' });
+  // Check if password reset columns exist
+  const checkColumns = 'SHOW COLUMNS FROM users LIKE "reset_token"';
+  db.query(checkColumns, (checkErr, checkResults) => {
+    if (checkErr || checkResults.length === 0) {
+      return res.status(500).json({ 
+        message: 'Password reset functionality is not available. Please contact support.' 
+      });
     }
 
-    if (results.length === 0) {
-      // Don't reveal if email exists or not for security
-      return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
-    }
-
-    const user = results[0];
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
-
-    const updateResetToken = 'UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?';
-    db.query(updateResetToken, [resetToken, resetExpires, user.id], (updateErr) => {
-      if (updateErr) {
-        console.error('Database error:', updateErr);
+    const findUser = 'SELECT * FROM users WHERE email = ?';
+    db.query(findUser, [email], (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
         return res.status(500).json({ message: 'Database error' });
       }
 
-      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: 'Reset Your Password - Task Manager',
-        html: `
-          <h2>Password Reset Request</h2>
-          <p>You requested a password reset for your Task Manager account.</p>
-          <p>Click the link below to reset your password:</p>
-          <a href="${resetUrl}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
-            Reset Password
-          </a>
-          <p>If the button doesn't work, copy and paste this link:</p>
-          <p>${resetUrl}</p>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this reset, please ignore this email.</p>
-        `
-      };
+      if (results.length === 0) {
+        // Don't reveal if email exists or not for security
+        return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+      }
 
-      transporter.sendMail(mailOptions, (emailErr) => {
-        if (emailErr) {
-          console.error('Email sending error:', emailErr);
-          return res.status(500).json({ message: 'Failed to send password reset email' });
+      const user = results[0];
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+      const updateResetToken = 'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?';
+      db.query(updateResetToken, [resetToken, resetExpires, user.id], (updateErr) => {
+        if (updateErr) {
+          console.error('Database error:', updateErr);
+          return res.status(500).json({ message: 'Database error' });
         }
 
-        res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'Reset Your Password - Task Manager',
+          html: `
+            <h2>Password Reset Request</h2>
+            <p>You requested a password reset for your Task Manager account.</p>
+            <p>Click the link below to reset your password:</p>
+            <a href="${resetUrl}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0;">
+              Reset Password
+            </a>
+            <p>If the button doesn't work, copy and paste this link:</p>
+            <p>${resetUrl}</p>
+            <p>This link will expire in 1 hour.</p>
+            <p>If you didn't request this reset, please ignore this email.</p>
+          `
+        };
+
+        transporter.sendMail(mailOptions, (emailErr) => {
+          if (emailErr) {
+            console.error('Email sending error:', emailErr);
+            return res.status(500).json({ message: 'Failed to send password reset email' });
+          }
+
+          res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+        });
       });
     });
   });
@@ -392,35 +402,45 @@ app.post('/reset-password', (req, res) => {
     return res.status(400).json({ message: 'Password must be at least 8 characters long' });
   }
 
-  const findUser = 'SELECT * FROM users WHERE password_reset_token = ? AND password_reset_expires > NOW()';
-  db.query(findUser, [token], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ message: 'Database error' });
+  // Check if password reset columns exist
+  const checkColumns = 'SHOW COLUMNS FROM users LIKE "password_reset_token"';
+  db.query(checkColumns, (checkErr, checkResults) => {
+    if (checkErr || checkResults.length === 0) {
+      return res.status(500).json({ 
+        message: 'Password reset functionality is not available. Please contact support.' 
+      });
     }
 
-    if (results.length === 0) {
-      return res.status(400).json({ message: 'Invalid or expired reset token' });
-    }
-
-    const user = results[0];
-
-    // Hash the new password
-    bcrypt.hash(newPassword, 10, (hashErr, hashedPassword) => {
-      if (hashErr) {
-        console.error('Error hashing password:', hashErr);
-        return res.status(500).json({ message: 'Server error' });
+    const findUser = 'SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > NOW()';
+    db.query(findUser, [token], (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ message: 'Database error' });
       }
 
-      // Update password and clear reset token
-      const updatePassword = 'UPDATE users SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE id = ?';
-      db.query(updatePassword, [hashedPassword, user.id], (updateErr) => {
-        if (updateErr) {
-          console.error('Database error:', updateErr);
-          return res.status(500).json({ message: 'Database error' });
+      if (results.length === 0) {
+        return res.status(400).json({ message: 'Invalid or expired reset token' });
+      }
+
+      const user = results[0];
+
+      // Hash the new password
+      bcrypt.hash(newPassword, 10, (hashErr, hashedPassword) => {
+        if (hashErr) {
+          console.error('Error hashing password:', hashErr);
+          return res.status(500).json({ message: 'Server error' });
         }
 
-        res.json({ message: 'Password reset successfully! You can now login with your new password.' });
+        // Update password and clear reset token
+        const updatePassword = 'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?';
+        db.query(updatePassword, [hashedPassword, user.id], (updateErr) => {
+          if (updateErr) {
+            console.error('Database error:', updateErr);
+            return res.status(500).json({ message: 'Database error' });
+          }
+
+          res.json({ message: 'Password reset successfully! You can now login with your new password.' });
+        });
       });
     });
   });
