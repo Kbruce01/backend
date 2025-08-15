@@ -37,7 +37,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Email verification and password reset tokens storage (in production, use Redis or database)
+// Email verification and password reset tokens storage
 const emailVerificationTokens = new Map();
 const passwordResetTokens = new Map();
 
@@ -70,9 +70,9 @@ const validateEmail = (email) => {
 
 // Mysql connection
 const db = mysql.createConnection({
-    host: process.env.DB_HOST,     // e.g., 'localhost'
-    user: process.env.DB_USER,     // e.g., 'root'
-    password: process.env.DB_PASSWORD, // your MySQL password
+    host: process.env.DB_HOST,   
+    user: process.env.DB_USER,  
+    password: process.env.DB_PASSWORD, 
     database: process.env.DB_NAME 
 });
 
@@ -87,7 +87,7 @@ db.connect((err) => {
 
 // Test route
 app.get('/', (req, res) => {
-  res.json({ message: 'Task Manager API is running!' });
+  res.json({ message: 'We up and running' });
 });
 
 // GET /me - Get current user info
@@ -188,7 +188,6 @@ app.post('/login', (req, res) => {
     const user = results[0];
     console.log('User Found:', user.username);
 
-    // Email verification check removed - users can login immediately after registration
 
     // Comparing the password sent to the hashed password in my database
     bcrypt.compare(password, user.password, (err, isMatch) => {
@@ -210,7 +209,7 @@ app.post('/login', (req, res) => {
         username: user.username, 
         email: user.email
       }, process.env.JWT_SECRET, {
-        expiresIn: '2h'
+        expiresIn: '1h'
       });
 
       // successful response
