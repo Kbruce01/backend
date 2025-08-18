@@ -478,3 +478,5 @@ app.delete('/tasks/:id', verifyToken, (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// timing
