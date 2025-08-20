@@ -4,7 +4,8 @@ import EmailVerification from './EmailVerification';
 import PasswordReset from './PasswordReset';
 
 // API base URL
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://task-manager-hnvg.onrender.com';
+
 
 function App() {
   const [user, setUser] = useState(null);
