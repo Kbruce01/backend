@@ -48,6 +48,8 @@ app.use(cors({
   credentials: true // ✅ This allows cookies / tokens to be sent
 }));
 
+app.use(express.json()); 
+
 
 // JWT Token Verification Middleware
 const verifyToken = (req, res, next) => {
