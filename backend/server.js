@@ -42,8 +42,13 @@ const emailVerificationTokens = new Map();
 const passwordResetTokens = new Map();
 
 // Middleware
-app.use(cors()); // allow react to call this 
-app.use(express.json());
+const cors = require("cors");
+
+app.use(cors({
+  origin: "https://task-manager-nine-blue.vercel.app", // ✅ Your actual deployed frontend URL
+  credentials: true // ✅ This allows cookies / tokens to be sent
+}));
+
 
 // JWT Token Verification Middleware
 const verifyToken = (req, res, next) => {
