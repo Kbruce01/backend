@@ -42,7 +42,6 @@ const emailVerificationTokens = new Map();
 const passwordResetTokens = new Map();
 
 // Middleware
-const cors = require("cors");
 
 app.use(cors({
   origin: "https://task-manager-nine-blue.vercel.app", // ✅ Your actual deployed frontend URL
