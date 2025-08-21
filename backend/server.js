@@ -44,8 +44,8 @@ const passwordResetTokens = new Map();
 // Middleware
 
 app.use(cors({
-  origin: "https://task-manager-nine-blue.vercel.app", // ✅ Your actual deployed frontend URL
-  credentials: true // ✅ This allows cookies / tokens to be sent
+  origin: "https://task-manager-nine-blue.vercel.app", 
+  credentials: true 
 }));
 
 app.use(express.json()); 
@@ -75,21 +75,24 @@ const validateEmail = (email) => {
 };
 
 // Mysql connection
-const db = mysql.createConnection({
+const db = mysql.createPool({
     host: process.env.DB_HOST,   
     user: process.env.DB_USER,  
     password: process.env.DB_PASSWORD, 
     database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-// Testing my connection
-db.connect((err) => {
+// Test MySQL pool connection
+db.query('SELECT 1 + 1 AS result', (err, results) => {
   if (err) {
-    console.error('MySQL Connection Failed', err);
-    return;
+    console.error('MySQL Pool Connection Failed:', err);
+  } else {
+    console.log('✅ Connected to MySQL Database');
   }
-  console.log('Connected to MySQL Database')
-})
+});
 
 // Test route
 app.get('/', (req, res) => {
